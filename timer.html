@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stopwatch/Timer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        .section {
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            width: 100%; /* 确保色块适应屏幕宽度 */
+            box-sizing: border-box;
+        }
+        .timer-section {
+            background-color: #e0f7fa; /* 恢复浅粉蓝色 */
+        }
+        .counter-section {
+            background-color: #f8bbd0; /* 浅粉红色 */
+        }
+        .clock-display {
+            font-family: "Rockwell", sans-serif;
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .button-group {
+            margin: 10px;
+        }
+        button {
+            font-size: 18px;
+            margin: 5px;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+        }
+        input[type="number"] {
+            font-size: 18px;
+        }
+        .start-pause-btn {
+            background-color: #ccffcc; /* 浅绿色 */
+        }
+        .reset-btn {
+            background-color: #ffcccc;
+        }
+        #mode-title, #counter-title {
+            font-size: 46px;
+            font-weight: normal; /* 去掉加粗 */
+            margin: 10px 0;
+        }
+        .counter-display {
+            font-family: "Rockwell", sans-serif;
+            font-size: 48px;
+            font-weight: bold; /* 加粗 */
+            margin-bottom: 10px;
+        }
+        .sound-icon {
+            font-size: 24px;
+            vertical-align: middle;
+        }
+        .fullscreen-toggle {
+            font-size: 15pt;
+            color: blue;
+            text-decoration: underline;
+            font-weight: bold;
+            cursor: pointer;
+            display: block;
+            margin-top: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section timer-section">
+            <h1 id="mode-title">Stopwatch</h1>
+            
+            <button id="toggleModeButton" onclick="switchMode()">Switch to Timer</button>
+
+            <div class="clock-display" id="clock">00:00:00.0</div>
+
+            <!-- Stopwatch Controls -->
+            <div id="stopwatch-controls" class="button-group">
+                <button class="start-pause-btn" onclick="toggleStartPause()">Start/Pause</button>
+                <button class="reset-btn" onclick="resetStopwatch()">Reset</button>
+                <button onclick="recordLap()">Record</button>
+            </div>
+            <ul id="record-list"></ul>
+
+            <!-- Timer Controls -->
+            <div id="timer-controls" class="button-group" style="display: none;">
+                <div>
+                    <input type="number" id="timer-hours" placeholder="Hours" min="0" style="width: 60px;">
+                    <input type="number" id="timer-minutes" placeholder="Minutes" min="0" style="width: 60px;">
+                    <input type="number" id="timer-seconds" placeholder="Seconds" min="0" style="width: 60px;">
+                    <button class="start-pause-btn" onclick="setTimer()">Submit</button>
+                </div>
+                <div>
+                    <button class="start-pause-btn" onclick="startTimer()">Start</button>
+                    <button class="reset-btn" onclick="resetTimer()">Reset</button>
+                    <button onclick="toggleMute()">Sound Settings <span id="sound-icon" class="sound-icon">🔈</span></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section counter-section">
+            <h2 id="counter-title">Counter</h2>
+            <div id="counter-display" class="counter-display">0</div>
+            <div class="button-group">
+                <button class="start-pause-btn" onclick="incrementCounter()">+1</button>
+                <button class="start-pause-btn" onclick="decrementCounter()">-1</button>
+                <button class="reset-btn" onclick="resetCounter()">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <span id="fullscreen-toggle" class="fullscreen-toggle" onclick="toggleFullscreen()">Fullscreen</span>
+
+    <script>
+        let stopwatchInterval, timerInterval;
+        let stopwatchTime = 0;
+        let timerTime = 0;
+        let isRunning = false;
+        let timerIsMuted = true;
+        let counter = 0;
+
+        // Update clock display function
+        function updateClockDisplay(time) {
+            const hours = String(Math.floor(time / 3600000)).padStart(2, '0');
+            const minutes = String(Math.floor((time % 3600000) / 60000)).padStart(2, '0');
+            const seconds = String(Math.floor((time % 60000) / 1000)).padStart(2, '0');
+            const milliseconds = String(Math.floor((time % 1000) / 100)).padStart(1, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}.${milliseconds}`;
+        }
+
+        // Stopwatch functions
+        function toggleStartPause() {
+            if (isRunning) {
+                pauseStopwatch();
+            } else {
+                startStopwatch();
+            }
+        }
+
+        function startStopwatch() {
+            isRunning = true;
+            clearInterval(stopwatchInterval);
+            stopwatchInterval = setInterval(() => {
+                stopwatchTime += 100;
+                updateClockDisplay(stopwatchTime);
+            }, 100);
+        }
+
+        function pauseStopwatch() {
+            isRunning = false;
+            clearInterval(stopwatchInterval);
+        }
+
+        function resetStopwatch() {
+            pauseStopwatch();
+            stopwatchTime = 0;
+            updateClockDisplay(stopwatchTime);
+            document.getElementById('record-list').innerHTML = '';
+        }
+
+        function recordLap() {
+            if (document.querySelectorAll('#record-list li').length < 10) {
+                const li = document.createElement('li');
+                li.textContent = `Lap ${document.querySelectorAll('#record-list li').length + 1}: ${document.getElementById('clock').textContent}`;
+                document.getElementById('record-list').appendChild(li);
+            }
+        }
+
+        // Timer functions
+        function setTimer() {
+            const hours = parseInt(document.getElementById('timer-hours').value) || 0;
+            const minutes = parseInt(document.getElementById('timer-minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('timer-seconds').value) || 0;
+            timerTime = (hours * 3600 + minutes * 60 + seconds) * 1000;
+            updateClockDisplay(timerTime);
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (timerTime > 0) {
+                    timerTime -= 100;
+                    updateClockDisplay(timerTime);
+                } else {
+                    clearInterval(timerInterval);
+                    showNotification();
+                    if (!timerIsMuted) {
+                        playAlarm();
+                    }
+                }
+            }, 100);
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timerTime = 0;
+            updateClockDisplay(timerTime);
+        }
+
+        function toggleMute() {
+            timerIsMuted = !timerIsMuted;
+            document.getElementById('sound-icon').textContent = timerIsMuted ? "🔈" : "🔊";
+        }
+
+        function showNotification() {
+            if (Notification.permission === "granted") {
+                const notification = new Notification("Timer Ended", {
+                    body: "The timer has finished!",
+                });
+                notification.onclick = () => notification.close();
+            } else {
+                alert("The timer has finished!");
+            }
+        }
+
+        function playAlarm() {
+            const alarmSound = new Audio("C:\\WINDOWS\\Media\\Ring03.wav");
+            alarmSound.play();
+        }
+
+        // Mode switching function
+        function switchMode() {
+            const modeTitle = document.getElementById('mode-title');
+            if (modeTitle.textContent === 'Stopwatch') {
+                modeTitle.textContent = 'Timer';
+                document.getElementById('stopwatch-controls').style.display = 'none';
+                document.getElementById('timer-controls').style.display = 'block';
+            } else {
+                modeTitle.textContent = 'Stopwatch';
+                document.getElementById('stopwatch-controls').style.display = 'block';
+                document.getElementById('timer-controls').style.display = 'none';
+            }
+        }
+
+        // Counter functions
+        function updateCounterDisplay() {
+            document.getElementById('counter-display').textContent = counter;
+        }
+
+        function incrementCounter() {
+            counter += 1;
+            updateCounterDisplay();
+        }
+
+        function decrementCounter() {
+            counter -= 1;
+            updateCounterDisplay();
+        }
+
+        function resetCounter() {
+            counter = 0;
+            updateCounterDisplay();
+        }
+
+        // Fullscreen function
+        function toggleFullscreen() {
+            const fullscreenToggle = document.getElementById('fullscreen-toggle');
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                fullscreenToggle.textContent = 'Exit Fullscreen';
+            } else {
+                document.exitFullscreen();
+                fullscreenToggle.textContent = 'Fullscreen';
+            }
+        }
+
+        // Request notification permission on page load
+        if (Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+    </script>
+</body>
+</html>
